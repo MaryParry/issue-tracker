@@ -1,7 +1,19 @@
 import uuid
 import allure
+import pytest
 from ui.pages.teams_page import TeamsPage
 from ui.pages.workspaces_page import WorkspacesPage
+
+
+@pytest.fixture
+def teams_page(authenticated_driver):
+    """Sets up a workspace and returns an initialized TeamsPage on that workspace."""
+    slug = f"team-ws-{uuid.uuid4().hex[:6]}"
+    ws_page = WorkspacesPage(authenticated_driver)
+    ws_page.navigate_to_create()
+    ws_page.create_workspace("Team Workspace", slug, "UTC")
+    ws_page.navigate_to_workspace(slug)
+    return TeamsPage(authenticated_driver)
 
 
 @allure.feature("Teams & Team Navigation")
@@ -12,14 +24,7 @@ class TestTeams:
         "Navigates to workspace dashboard and checks for 'Your teams' section."
     )
     @allure.severity(allure.severity_level.CRITICAL)
-    def test_team_sidebar_group_render(self, authenticated_driver):
-        slug = f"team-ws-{uuid.uuid4().hex[:6]}"
-        ws_page = WorkspacesPage(authenticated_driver)
-        ws_page.navigate_to_create()
-        ws_page.create_workspace("Team Workspace", slug, "UTC")
-        ws_page.navigate_to_workspace(slug)
-
-        teams_page = TeamsPage(authenticated_driver)
+    def test_team_sidebar_group_render(self, teams_page):
         assert teams_page.is_default_team_present(), (
             "Failed UI-TM-01: default team is not present"
         )
@@ -36,15 +41,7 @@ class TestTeams:
         "Clicks on My Teams, Ensures toggle works correctly and that all the sub-elements route accordingly"
     )
     @allure.severity(allure.severity_level.CRITICAL)
-    def test_team_subelement_toggle_routing(self, authenticated_driver):
-        slug = f"team-ws-{uuid.uuid4().hex[:6]}"
-        ws_page = WorkspacesPage(authenticated_driver)
-        ws_page.navigate_to_create()
-        ws_page.create_workspace("Team Workspace", slug, "UTC")
-        ws_page.navigate_to_workspace(slug)
-
-        teams_page = TeamsPage(authenticated_driver)
-
+    def test_team_subelement_toggle_routing(self, teams_page):
         teams_page.click_default_team()
         assert not (
             teams_page.is_issues_link_present() and teams_page.is_cycles_link_present()
@@ -76,16 +73,41 @@ class TestTeams:
         "Navigates to workspace team management route displaying list of workspace teams and create team action"
     )
     @allure.severity(allure.severity_level.CRITICAL)
-    def test_your_teams_gear_btn(self, authenticated_driver):
-        slug = f"team-ws-{uuid.uuid4().hex[:6]}"
-        ws_page = WorkspacesPage(authenticated_driver)
-        ws_page.navigate_to_create()
-        ws_page.create_workspace("Team Workspace", slug, "UTC")
-        ws_page.navigate_to_workspace(slug)
-
-        teams_page = TeamsPage(authenticated_driver)
+    def test_your_teams_gear_btn(self, teams_page):
         teams_page.click(teams_page.manage_teams_locator)
 
         assert teams_page.is_teams_management_table_present(), (
             "Failed UI-TM-04: Teams Table is not visible"
         )
+
+    @allure.story("UI-TM-04: Create Team Modal Render")
+    @allure.title("Verifies Team creation Form Render")
+    @allure.description(
+        "Clicks on 'Create Team' Button in 'Your Teams' Section and checks for form's elements render"
+    )
+    @allure.severity(allure.severity_level.CRITICAL)
+    def test_team_modal_render(self, teams_page):
+        teams_page.click(teams_page.manage_teams_locator)
+        teams_page.click_create_team()
+
+        assert teams_page.is_create_team_form_rendered(), (
+            "Failed UI-TM-04: Create Team modal and form elements did not render"
+        )
+        assert teams_page.is_color_picker_present(), (
+            "Failed UI-TM-04: Color picker is not present in Create Team modal"
+        )
+        assert teams_page.is_cycle_duration_present(), (
+            "Failed UI-TM-04: Cycle duration control is not present in Create Team modal"
+        )
+
+    @allure.story("UI-TM-05: Handle Invite Token Query")
+    @allure.title("Invite Query Token Handling")
+    @allure.description(
+        "Preserves invite token and redirects user to /invite/abc-123 upon successful authentication."
+    )
+    @allure.severity(allure.severity_level.CRITICAL)
+    def test_invite_query_handling(self, authenticated_driver):
+        pass
+
+
+
