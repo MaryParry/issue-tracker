@@ -27,11 +27,13 @@ class TestWorkspaces:
     def test_create_workspace_form_validation(self, authenticated_driver):
         ws_page = WorkspacesPage(authenticated_driver)
         ws_page.navigate_to_create()
-        ws_page.create_workspace("Acme Corp", "Acme Corp!", "UTC")
+        ws_page.create_workspace(
+            "Acme Corp", "Acme Corp!", "UTC", wait_for_redirect=False
+        )
         error_text = ws_page.get_form_error_text()
-        assert (
-            error_text != ""
-        ), f"Failed UI-WS-02: Expected validation error for invalid slug 'Acme Corp!', but no error text was displayed on page '{authenticated_driver.current_url}'"
+        assert error_text != "", (
+            f"Failed UI-WS-02: Expected validation error for invalid slug 'Acme Corp!', but no error text was displayed on page '{authenticated_driver.current_url}'"
+        )
 
     @allure.story("UI-WS-03: Workspace Dashboard Layout")
     @allure.title("Verify workspace dashboard layout")
@@ -74,7 +76,9 @@ class TestWorkspaces:
         assert (
             f"/workspace/{slug2}" in authenticated_driver.current_url
             or ws_page.is_dashboard_layout_rendered()
-        ), f"Failed UI-WS-04: Selecting 'Workspace Two' from dropdown failed to navigate to '/workspace/{slug2}'. Current URL is '{authenticated_driver.current_url}'"
+        ), (
+            f"Failed UI-WS-04: Selecting 'Workspace Two' from dropdown failed to navigate to '/workspace/{slug2}'. Current URL is '{authenticated_driver.current_url}'"
+        )
 
     @allure.story("UI-WS-05: Workspace Settings Navigation")
     @allure.title("Verify workspace settings navigation")
@@ -94,4 +98,3 @@ class TestWorkspaces:
             assert ws_page.is_dashboard_layout_rendered(), (
                 f"Failed UI-WS-05: Navigating to setting section '{setting}' failed or sidebar was unrendered. Current URL is '{authenticated_driver.current_url}'"
             )
-

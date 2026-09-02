@@ -14,13 +14,13 @@ class TestAuth:
     def test_auth_form_render(self, driver):
         page = AuthPage(driver)
         page.navigate_to_login_page()
-        assert (
-            page.is_sign_in_form_rendered()
-        ), f"Failed UI-AUTH-01: Sign in form inputs were not displayed on page '{driver.current_url}'"
+        assert page.is_sign_in_form_rendered(), (
+            f"Failed UI-AUTH-01: Sign in form inputs were not displayed on page '{driver.current_url}'"
+        )
         page.switch_to_sign_up_form()
-        assert (
-            page.is_sign_up_form_rendered()
-        ), f"Failed UI-AUTH-01: Sign up form inputs were not displayed on page '{driver.current_url}'"
+        assert page.is_sign_up_form_rendered(), (
+            f"Failed UI-AUTH-01: Sign up form inputs were not displayed on page '{driver.current_url}'"
+        )
 
     @allure.story("UI-AUTH-02: Toggle Sign-In / Sign-Up Mode")
     @allure.title("Verify switching between sign in and sign up forms")
@@ -32,13 +32,13 @@ class TestAuth:
         page = AuthPage(driver)
         page.navigate_to_login_page()
         page.switch_to_sign_up_form()
-        assert (
-            page.is_sign_up_text_present()
-        ), f"Failed UI-AUTH-02: Sign up toggle text was not displayed on page '{driver.current_url}'"
+        assert page.is_sign_up_text_present(), (
+            f"Failed UI-AUTH-02: Sign up toggle text was not displayed on page '{driver.current_url}'"
+        )
         page.switch_to_sign_in_form()
-        assert (
-            page.is_sign_in_text_present()
-        ), f"Failed UI-AUTH-02: Sign in toggle text was not displayed on page '{driver.current_url}'"
+        assert page.is_sign_in_text_present(), (
+            f"Failed UI-AUTH-02: Sign in toggle text was not displayed on page '{driver.current_url}'"
+        )
 
     @allure.story("UI-AUTH-03: Auth Input Validation")
     @allure.title("Verify auth form input validation")
@@ -50,9 +50,9 @@ class TestAuth:
         page = AuthPage(driver)
         page.navigate_to_login_page()
         page.sign_in("invalid-email", "short")
-        assert (
-            not page.is_workspaces_header_present()
-        ), f"Failed UI-AUTH-03: Form submitted successfully despite invalid input format on page '{driver.current_url}'"
+        assert not page.is_workspaces_header_present(), (
+            f"Failed UI-AUTH-03: Form submitted successfully despite invalid input format on page '{driver.current_url}'"
+        )
 
     @allure.story("UI-AUTH-04: Invalid Credentials Error State")
     @allure.title("Verify error state on invalid login credentials")
@@ -64,9 +64,9 @@ class TestAuth:
         page = AuthPage(driver)
         page.navigate_to_login_page()
         page.sign_in("nonexistent_user_99@example.com", "wrongpassword123")
-        assert page.is_element_present(
-            page.incorrect_credentials_locator
-        ), f"Failed UI-AUTH-04: Error banner for invalid credentials was not displayed on page '{driver.current_url}'"
+        assert page.is_element_present(page.incorrect_credentials_locator), (
+            f"Failed UI-AUTH-04: Error banner for invalid credentials was not displayed on page '{driver.current_url}'"
+        )
 
     @allure.story("UI-AUTH-05: Invite Token Query Handling")
     @allure.title("Verify invite token query handling on auth route")
@@ -80,7 +80,9 @@ class TestAuth:
         assert (
             "inviteToken=abc-123" in driver.current_url
             or page.is_sign_in_form_rendered()
-        ), f"Failed UI-AUTH-05: Invite token was lost from URL on page '{driver.current_url}'"
+        ), (
+            f"Failed UI-AUTH-05: Invite token was lost from URL on page '{driver.current_url}'"
+        )
 
     @allure.story("User Registration")
     @allure.title("Verify new user registration")
@@ -92,9 +94,9 @@ class TestAuth:
         page.sign_up(
             "Test User", f"test_{uuid.uuid4().hex[:8]}@example.com", "testpassword"
         )
-        assert (
-            page.is_workspaces_header_present()
-        ), f"Failed sign up: Workspaces header was not displayed after registration. Current URL: '{driver.current_url}'"
+        assert page.is_workspaces_header_present(), (
+            f"Failed sign up: Workspaces header was not displayed after registration. Current URL: '{driver.current_url}'"
+        )
 
     @allure.story("User Login")
     @allure.title("Verify user can sign in with valid credentials")
@@ -112,6 +114,6 @@ class TestAuth:
 
         page.navigate_to_login_page()
         page.sign_in(user_email, user_password)
-        assert (
-            page.is_workspaces_header_present()
-        ), f"Failed sign in: Workspaces header was not displayed after login. Current URL: '{driver.current_url}'"
+        assert page.is_workspaces_header_present(), (
+            f"Failed sign in: Workspaces header was not displayed after login. Current URL: '{driver.current_url}'"
+        )

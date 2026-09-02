@@ -5,41 +5,61 @@ import pytest
 from selenium import webdriver
 
 
-@pytest.fixture(scope="session", autouse=True)
-def purge_database():
-    """Automatically purges user & auth tables from PostgreSQL before running tests."""
-    db_url = os.getenv(
-        "DATABASE_URL", "postgres://postgres:postgres@localhost:5432/issue_tracker"
+def pytest_addoption(parser):
+    parser.addoption(
+        "--headless",
+        action="store_true",
+        default=False,
+        help="Run browser tests in headless mode",
     )
-    try:
-        import psycopg
-
-        with psycopg.connect(db_url) as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    'TRUNCATE TABLE "user", "session", "account", "verification" CASCADE;'
-                )
-            conn.commit()
-    except Exception as e:
-        print(f"\n[Warning] Could not purge database: {e}")
 
 
 @pytest.fixture
-def driver():
+def driver(request):
     options = webdriver.FirefoxOptions()
-    if os.getenv("MOZ_HEADLESS", "0") in ("1", "true") or os.getenv(
-        "HEADLESS", "0"
-    ) in ("1", "true"):
-        options.add_argument("--headless")
-    options.add_argument("--width=1920")
-    options.add_argument("--height=1080")
+    is_headless = request.config.getoption("--headless") or os.getenv(
+        "HEADLESS", "false"
+    ).lower() in ("true", "1", "yes")
+    if is_headless:
+        options.add_argument("-headless")
 
     driver = webdriver.Firefox(options=options)
-    driver.set_window_size(1920, 1080)
+
+    try:
+        driver.get("http://localhost:3000")
+        driver.delete_all_cookies()
+    except Exception:
+        pass
 
     yield driver
 
     driver.quit()
+
+
+@pytest.fixture
+def authenticated_driver(driver):
+    """Provides a driver pre-authenticated via fast API signup & cookie injection."""
+    import json
+    import urllib.request
+    import uuid
+
+    email = f"user_{uuid.uuid4().hex[:8]}@example.com"
+    payload = json.dumps(
+        {"email": email, "password": "testpassword", "name": "Test User"}
+    ).encode()
+
+    req = urllib.request.Request(
+        "http://localhost:3000/api/auth/sign-up/email",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req) as response:
+        cookie_header = response.headers.get("Set-Cookie", "")
+        token = cookie_header.split("better-auth.session_token=")[1].split(";")[0]
+
+    driver.get("http://localhost:3000")
+    driver.add_cookie({"name": "better-auth.session_token", "value": token})
+    return driver
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)

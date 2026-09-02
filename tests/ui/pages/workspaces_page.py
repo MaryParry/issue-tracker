@@ -115,7 +115,7 @@ class WorkspacesPage(BasePage):
     def select_workspace_from_dropdown(self, slug_or_name: str):
         item_locator = (
             By.XPATH,
-            f"//*[@role='option' or contains(@class, 'select-item') or @data-value='{slug_or_name}'][contains(., '{slug_or_name}') or @data-value='{slug_or_name}'] | //span[contains(text(), '{slug_or_name}')]",
+            f"//div[@role='listbox']//div[@role='option'][contains(., '{slug_or_name}')] | //*[@role='option'][contains(., '{slug_or_name}')]",
         )
         self.click(item_locator)
 

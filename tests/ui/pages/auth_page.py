@@ -53,7 +53,7 @@ class AuthPage(BasePage):
     @allure.step("Navigate to authentication page")
     def navigate_to_login_page(self):
         self.navigate("auth")
-
+    @allure.step("add")
     @allure.step("Sign up user with name '{name}', email '{email}'")
     def sign_up(self, name, email, password):
         self.click(self.sign_up_button_locator)  # page goes to sign in by default
