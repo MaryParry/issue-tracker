@@ -100,14 +100,62 @@ class TestTeams:
             "Failed UI-TM-04: Cycle duration control is not present in Create Team modal"
         )
 
-    @allure.story("UI-TM-05: Handle Invite Token Query")
-    @allure.title("Invite Query Token Handling")
+    @allure.story("UI-TM-05: Create Team Submission")
+    @allure.title("Verify creating a team with valid name and key")
     @allure.description(
-        "Preserves invite token and redirects user to /invite/abc-123 upon successful authentication."
+        "Fills in valid team name and key, submits the form, and verifies modal closes, "
+        "team appears in the management table, and team appears in sidebar navigation."
     )
     @allure.severity(allure.severity_level.CRITICAL)
-    def test_invite_query_handling(self, authenticated_driver):
-        pass
+    def test_create_team_submission(self, teams_page):
+        teams_page.click_manage_teams()
+        teams_page.click_create_team()
+        assert teams_page.is_create_team_modal_open(), (
+            "Failed UI-TM-05: Create Team modal is not open"
+        )
+
+        team_name = f"Frontend Team {uuid.uuid4().hex[:4]}"
+        team_key = f"FE{uuid.uuid4().hex[:2].upper()}"
+
+        teams_page.create_team(team_name, team_key)
+
+        assert teams_page.is_create_team_modal_closed(), (
+            "Failed UI-TM-05: Create team modal did not close after submission"
+        )
+        assert teams_page.is_team_in_teams_table(team_name), (
+            f"Failed UI-TM-05: Team '{team_name}' was not found in teams management table"
+        )
+        assert teams_page.is_team_in_teams_table(team_key), (
+            f"Failed UI-TM-05: Team key '{team_key}' was not found in teams management table"
+        )
+        assert teams_page.is_team_in_sidebar(team_name), (
+            f"Failed UI-TM-05: Team '{team_name}' was not found in sidebar navigation"
+        )
+
+    @allure.story("UI-TM-06: Create Team Key Validation")
+    @allure.title("Verify team key validation on team creation form")
+    @allure.description(
+        "Submits team creation form with an invalid key (>12 chars or illegal characters) "
+        "and verifies field validation error is displayed and modal remains open."
+    )
+    @allure.severity(allure.severity_level.NORMAL)
+    def test_create_team_key_validation(self, teams_page):
+        teams_page.click_manage_teams()
+        teams_page.click_create_team()
+        assert teams_page.is_create_team_modal_open(), (
+            "Failed UI-TM-06: Create Team modal is not open"
+        )
+
+        invalid_key = "TOOLONGKEY12345"
+        teams_page.create_team("Invalid Key Team", invalid_key)
+
+        error_text = teams_page.get_key_field_error()
+        assert error_text != "" or teams_page.is_key_field_invalid(), (
+            "Failed UI-TM-06: Expected validation error for invalid key, but no error was displayed"
+        )
+        assert teams_page.is_create_team_modal_open(), (
+            "Failed UI-TM-06: Modal should remain open when form validation fails"
+        )
 
 
 

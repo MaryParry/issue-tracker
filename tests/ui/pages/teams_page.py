@@ -1,5 +1,8 @@
 import allure
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 from ui.pages.base_page import BasePage
 
 
@@ -62,6 +65,14 @@ class TeamsPage(BasePage):
             By.CSS_SELECTOR,
             'div[role="dialog"] button[type="submit"]',
         )
+        self.create_team_key_error_locator = (
+            By.XPATH,
+            "//div[@role='dialog']//input[@id='key']/ancestor::div[@data-slot='field']//*[@data-slot='field-error'] | //div[@role='dialog']//*[@data-slot='field-error']",
+        )
+        self.create_team_key_invalid_input_locator = (
+            By.CSS_SELECTOR,
+            'div[role="dialog"] input#key[aria-invalid="true"]',
+        )
 
         # Issues page locators
 
@@ -123,6 +134,10 @@ class TeamsPage(BasePage):
     def is_cycle_duration_present(self) -> bool:
         return self.is_element_present(self.create_team_cycle_duration_select)
 
+    @allure.step("Click 'Manage teams' link in sidebar")
+    def click_manage_teams(self):
+        self.click(self.manage_teams_locator)
+
     @allure.step("Check if create team modal and form controls are rendered")
     def is_create_team_form_rendered(self) -> bool:
         return (
@@ -132,4 +147,74 @@ class TeamsPage(BasePage):
             and self.is_color_picker_present()
             and self.is_cycle_duration_present()
             and self.is_element_present(self.create_team_submit_btn)
+        )
+
+    @allure.step("Enter team name '{name}'")
+    def enter_team_name(self, name: str):
+        field = self.find(self.create_team_form_name)
+        field.clear()
+        field.send_keys(name)
+        self.driver.execute_script(
+            "arguments[0].dispatchEvent(new Event('input', { bubbles: true }));"
+            "arguments[0].dispatchEvent(new Event('change', { bubbles: true }));",
+            field,
+        )
+
+    @allure.step("Enter team key '{key}'")
+    def enter_team_key(self, key: str):
+        field = self.find(self.create_team_form_key)
+        field.clear()
+        field.send_keys(key)
+        self.driver.execute_script(
+            "arguments[0].dispatchEvent(new Event('input', { bubbles: true }));"
+            "arguments[0].dispatchEvent(new Event('change', { bubbles: true }));",
+            field,
+        )
+
+    @allure.step("Click submit button in create team modal")
+    def submit_create_team(self):
+        self.click(self.create_team_submit_btn)
+
+    @allure.step("Create team with name '{name}' and key '{key}'")
+    def create_team(self, name: str, key: str):
+        self.enter_team_name(name)
+        self.enter_team_key(key)
+        self.submit_create_team()
+
+    @allure.step("Check if create team modal is closed")
+    def is_create_team_modal_closed(self, timeout=10) -> bool:
+        try:
+            WebDriverWait(self.driver, timeout).until(
+                EC.invisibility_of_element_located(self.create_team_modal_locator)
+            )
+            return True
+        except (TimeoutException, NoSuchElementException):
+            return False
+
+    @allure.step("Check if team '{team_name_or_key}' is present in teams management table")
+    def is_team_in_teams_table(self, team_name_or_key: str, timeout=10) -> bool:
+        locator = (
+            By.XPATH,
+            f"//table[@data-slot='table']//td[contains(normalize-space(), '{team_name_or_key}')]",
+        )
+        return self.is_element_present(locator, timeout=timeout)
+
+    @allure.step("Check if team '{team_name}' is present in sidebar")
+    def is_team_in_sidebar(self, team_name: str, timeout=10) -> bool:
+        locator = (
+            By.XPATH,
+            f"//aside[contains(@data-slot, 'sidebar') or contains(@data-sidebar, 'sidebar')]//span[normalize-space()='{team_name}'] | //span[normalize-space()='{team_name}']",
+        )
+        return self.is_element_present(locator, timeout=timeout)
+
+    @allure.step("Get key field validation error text")
+    def get_key_field_error(self, timeout=5) -> str:
+        if self.is_element_present(self.create_team_key_error_locator, timeout=timeout):
+            return self.get_text(self.create_team_key_error_locator, timeout=timeout)
+        return ""
+
+    @allure.step("Check if key field is marked invalid")
+    def is_key_field_invalid(self, timeout=5) -> bool:
+        return self.is_element_present(
+            self.create_team_key_invalid_input_locator, timeout=timeout
         )
