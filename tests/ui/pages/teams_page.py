@@ -23,7 +23,10 @@ class TeamsPage(BasePage):
             "//a[.//span[normalize-space()='Cycles']]",
         )
 
-        self.settings_locator = (By.CSS_SELECTOR, "//*[name()='circle']")
+        self.settings_locator = (
+            By.XPATH,
+            "//a[contains(@href, '/teams') and .//span[normalize-space()='Manage teams']]",
+        )
 
         self.default_team_locator = (
             By.XPATH,
@@ -74,13 +77,41 @@ class TeamsPage(BasePage):
             'div[role="dialog"] input#key[aria-invalid="true"]',
         )
 
-        # Issues page locators
-
-        # Cycles page locators
-        self.create_cycle_btn_locator = (
+        # Team Cycle Settings Locators (UI-TM-07)
+        self.team_cycle_settings_link = (
             By.XPATH,
-            "//button[.//span[normalize-space()='Create cycle']]",
+            "//table[@data-slot='table']//a[normalize-space()='Cycle settings'] | //a[contains(@href, '/settings/cycles')]",
         )
+        self.cycle_settings_heading = (
+            By.XPATH,
+            "//h1[contains(normalize-space(), 'cycle settings')]",
+        )
+        self.cycle_settings_card_title = (
+            By.XPATH,
+            "//*[contains(concat(' ', normalize-space(@class), ' '), ' card-title ') or self::h3][normalize-space()='Cycle automation'] | //*[normalize-space()='Cycle automation']",
+        )
+        self.cycle_settings_back_link = (
+            By.XPATH,
+            "//a[contains(normalize-space(), 'Teams') and contains(@href, '/teams')]",
+        )
+        self.cycle_settings_cadence_switch = (By.ID, "cadence-enabled")
+        self.cycle_settings_cadence_days_input = (By.ID, "cadence-days")
+        self.cycle_settings_anchor_date_input = (By.ID, "anchor-date")
+        self.cycle_settings_planning_horizon_input = (By.ID, "planning-horizon")
+        self.cycle_settings_end_behavior_select = (By.ID, "end-behavior")
+        self.cycle_settings_grace_period_input = (By.ID, "grace-period")
+        self.cycle_settings_default_rollover_select = (By.ID, "default-rollover")
+        self.cycle_settings_reminder_lead_input = (By.ID, "reminder-lead")
+        self.cycle_settings_preview_section = (
+            By.CSS_SELECTOR,
+            "section[aria-label='Schedule preview']",
+        )
+        self.cycle_settings_submit_btn = (
+            By.CSS_SELECTOR,
+            "form button[type='submit']",
+        )
+
+        # Issues page locators
 
     @allure.step("Check if 'Your teams' section is present")
     def is_your_teams_section_present(self) -> bool:
@@ -191,7 +222,9 @@ class TeamsPage(BasePage):
         except (TimeoutException, NoSuchElementException):
             return False
 
-    @allure.step("Check if team '{team_name_or_key}' is present in teams management table")
+    @allure.step(
+        "Check if team '{team_name_or_key}' is present in teams management table"
+    )
     def is_team_in_teams_table(self, team_name_or_key: str, timeout=10) -> bool:
         locator = (
             By.XPATH,
@@ -218,3 +251,11 @@ class TeamsPage(BasePage):
         return self.is_element_present(
             self.create_team_key_invalid_input_locator, timeout=timeout
         )
+
+    @allure.step("Click sidebar teams settings")
+    def click_sidebar_settings(self):
+        return self.click(self.settings_locator)
+
+    @allure.step("Click Cycle Settings")
+    def click_cycle_settings(self):
+        return self.click(self.team_cycle_settings_link)

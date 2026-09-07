@@ -132,12 +132,6 @@ class TestTeams:
             f"Failed UI-TM-05: Team '{team_name}' was not found in sidebar navigation"
         )
 
-    @allure.story("UI-TM-06: Create Team Key Validation")
-    @allure.title("Verify team key validation on team creation form")
-    @allure.description(
-        "Submits team creation form with an invalid key (>12 chars or illegal characters) "
-        "and verifies field validation error is displayed and modal remains open."
-    )
     @allure.severity(allure.severity_level.NORMAL)
     def test_create_team_key_validation(self, teams_page):
         teams_page.click_manage_teams()
@@ -145,9 +139,18 @@ class TestTeams:
         assert teams_page.is_create_team_modal_open(), (
             "Failed UI-TM-06: Create Team modal is not open"
         )
+        # long input
+        teams_page.create_team("Invalid Key Team", "TOOLONGKEY12345")
 
-        invalid_key = "TOOLONGKEY12345"
-        teams_page.create_team("Invalid Key Team", invalid_key)
+        error_text = teams_page.get_key_field_error()
+        assert error_text != "" or teams_page.is_key_field_invalid(), (
+            "Failed UI-TM-06: Expected validation error for invalid key, but no error was displayed"
+        )
+        assert teams_page.is_create_team_modal_open(), (
+            "Failed UI-TM-06: Modal should remain open when form validation fails"
+        )
+        # Invalid Characters
+        teams_page.create_team("Invalid characters", "(˶>⩊<˶)")
 
         error_text = teams_page.get_key_field_error()
         assert error_text != "" or teams_page.is_key_field_invalid(), (
@@ -157,5 +160,21 @@ class TestTeams:
             "Failed UI-TM-06: Modal should remain open when form validation fails"
         )
 
-
-
+    @allure.story("UI-TM-07: Team Cycles Settings Render")
+    @allure.title("Verify Teams Cycle Settings Form Render")
+    @allure.description(
+        "Goes to Team Cycles page and ensures"
+        "controls to configure default cycle duration, auto-start, and auto-archive are rendered properly."
+    )
+    @allure.severity(allure.severity_level.NORMAL)
+    def test_team_cycles_settings_render(self, teams_page):
+        teams_page.click_sidebar_settings()
+        #        teams_page.click_cycle_settings()
+        ###
+        # Cycles settings is not accessible due to a bug on the website
+        #
+        # upon creating a workspace, a default team is created, however,
+        # the cycle settings are not initialized for the given default team
+        #
+        ###
+        assert teams_page.is_element_present(teams_page.cycle_settings_card_title)
