@@ -1,10 +1,23 @@
 # Test Cases Specification
 
-This document details the test strategy and test cases for **Prism Tracker**, covering both **API** procedures (oRPC / Elysia) and **UI** interactions (TanStack Router / Selenium).
+This document details the test strategy and test cases for **Prism Tracker**, covering both **API** procedures (oRPC / Elysia) and **End-to-End (E2E) UI** interactions (TanStack Router / Playwright in TypeScript).
+
+---
+
+## QA Automation Stack & Architecture
+
+- **Language & Runtime**: TypeScript (Strict Mode, ESM), Bun runtime
+- **E2E Test Runner & Browser Automation**: [Playwright](https://playwright.dev/) (`@playwright/test`) configured in `apps/e2e/playwright.config.ts` with custom test fixture extensions (`test.extend<CustomFixtures>`)
+- **Design Pattern**: Page Object Model (POM) under `apps/e2e/pages/` separating locator logic from test assertions
+- **Test Fixtures & Teardown**: `apps/e2e/fixtures/test.ts` injecting isolated test pages, authenticated contexts, and database lifecycle management (`apps/e2e/fixtures/db.ts`)
+- **Locator Strategy**: Prioritize accessible, user-facing role locators (`getByRole`, `getByLabel`, `getByText`, `getByPlaceholder`) over brittle CSS/XPath selectors
+- **Execution Environment**: Nix flake (`flake.nix`) providing browser binaries via `PLAYWRIGHT_BROWSERS_PATH`
 
 ---
 
 ## 1. API Test Cases
+
+API tests validate the typed oRPC procedures exposed by Elysia/oRPC backend packages.
 
 ### 1.1 Workspaces (`workspaceRouter`)
 | ID | Test Case | Description / Scenario | Input Data | Expected Result |
@@ -47,114 +60,195 @@ This document details the test strategy and test cases for **Prism Tracker**, co
 
 ---
 
-## 2. UI Test Cases
+## 2. UI End-to-End Test Cases (Playwright)
+
+All UI tests run in `apps/e2e` using TypeScript, Playwright page abstractions, and `@playwright/test` runner.
 
 ### 2.1 Authentication & Auth Forms
-| ID | Test Case | Description / Scenario | Target Route / Component | Expected Result |
+- **Target Spec**: `apps/e2e/tests/auth.spec.ts`
+- **Page Object**: `AuthPage` (`apps/e2e/pages/auth.page.ts`)
+
+| ID | Test Case | Description / Scenario | Target Route / Component | Locators & Expected Result |
 |---|---|---|---|---|
-| **UI-AUTH-01** | Auth Form Render | Navigate to `/auth` route. | `/auth` | Displays email input, password input, sign-in button, and sign-up toggle link. |
-| **UI-AUTH-02** | Toggle Sign-In / Sign-Up Mode | Click sign-up toggle link on `/auth`. | `/auth` | Toggles form heading and submit button text between "Sign in" and "Sign up". Shows name input when in sign-up mode. |
-| **UI-AUTH-03** | Auth Input Validation | Enter invalid email format or password under 8 characters. | `/auth` | Prevents submission and displays inline field validation error message. |
-| **UI-AUTH-04** | Invalid Credentials Error State | Submit invalid login credentials. | `/auth` | Displays top-level form error banner (`.form-error` / `FieldError`) with error message from auth service. |
-| **UI-AUTH-05** | Invite Token Query Handling | Navigate to `/auth?inviteToken=abc-123`. | `/auth` | Preserves invite token and redirects user to `/invite/abc-123` upon successful authentication. |
+| **UI-AUTH-01** | Auth Form Render | Navigate to `/auth` route. | `/auth` | `getByRole("textbox", { name: /email/i })`, password input, and `getByRole("button", { name: "Sign In" })` are visible. Mode toggle button visible. Sign-up-only fields (name input) remain hidden. |
+| **UI-AUTH-02** | Toggle Sign-In / Sign-Up Mode | Click sign-up toggle button on `/auth`. | `/auth` | Toggles submit button text between "Sign In" and "Sign Up". `nameInput` (`getByRole("textbox", { name: /name/i })`) is visible in sign-up mode and hidden when switching back. |
+| **UI-AUTH-03** | Auth Input Validation | Enter invalid email format or password under 8 characters. | `/auth` | Form submission is prevented; client-side or inline error message (`getByRole("alert")`) is displayed indicating validation failure. |
+| **UI-AUTH-04** | Invalid Credentials Error State | Submit unauthenticated/incorrect login credentials. | `/auth` | Top-level alert banner (`getByRole("alert")`) renders auth failure message from service. |
+| **UI-AUTH-05** | Invite Token Query Handling | Navigate to `/auth?inviteToken=abc-123`. | `/auth` | Preserves `inviteToken` query parameter in state and redirects to `/invite/abc-123` upon successful authentication. |
 
 ---
 
 ### 2.2 Workspace Navigation & Management
-| ID | Test Case | Description / Scenario | Target Route / Component | Expected Result |
+- **Target Spec**: `apps/e2e/tests/workspace.spec.ts`
+- **Page Object**: `WorkspacePage` (`apps/e2e/pages/workspace.page.ts`)
+
+| ID | Test Case | Description / Scenario | Target Route / Component | Locators & Expected Result |
 |---|---|---|---|---|
-| **UI-WS-01** | Create Workspace Form Render | Navigate to `/workspace/create`. | `/workspace/create` | Displays workspace name input, workspace slug input, timezone input, and create workspace submission button. |
-| **UI-WS-02** | Create Workspace Form Validation | Submit creation form with invalid slug format (e.g. spaces or uppercase). | `/workspace/create` | Displays field error indicating slug must match `/^[a-z0-9-]+$/`. |
-| **UI-WS-03** | Workspace Dashboard Layout | Navigate to `/workspace/:slug`. | `/workspace/acme` | Displays workspace sidebar navigation (Issues, Cycles, Settings), team selector, and main content panel. |
-| **UI-WS-04** | Workspace Selector Dropdown | Click workspace selector dropdown in sidebar. | `WorkspaceSidebar` | Displays list of user's workspaces; selecting a workspace navigates to `/workspace/:newSlug`. |
-| **UI-WS-05** | Workspace Settings Navigation | Click settings items in sidebar (Members, Roles, Labels, Priorities). | `/workspace/:slug/settings/*` | Navigates to corresponding settings sub-route and updates active link state. |
+| **UI-WS-01** | Create Workspace Form Render | Navigate to `/workspace/create`. | `/workspace/create` | Workspace name input, slug input, timezone selector, and submit button are visible. |
+| **UI-WS-02** | Create Workspace Form Validation | Submit creation form with invalid slug format (spaces or uppercase). | `/workspace/create` | Inline field error displays message indicating slug must match `/^[a-z0-9-]+$/`. |
+| **UI-WS-03** | Workspace Dashboard Layout | Navigate to `/workspace/:slug`. | `/workspace/$slug` | Sidebar navigation renders with Links to Issues, Cycles, Settings, and active workspace title. |
+| **UI-WS-04** | Workspace Selector Dropdown | Click workspace selector dropdown in sidebar. | `WorkspaceSidebar` | Popover displays list of accessible workspaces; selecting an item navigates to `/workspace/:newSlug`. |
+| **UI-WS-05** | Workspace Settings Navigation | Click settings navigation links (Members, Roles, Labels, Priorities). | `/workspace/:slug/settings/*` | Navigates to corresponding settings sub-route and applies active state styling to sidebar link. |
 
 ---
 
 ### 2.3 Teams & Team Management
-| ID | Test Case | Description / Scenario | Target Route / Component | Expected Result |
+- **Target Spec**: `apps/e2e/tests/teams.spec.ts`
+- **Page Object**: `TeamPage` (`apps/e2e/pages/team.page.ts`)
+
+| ID | Test Case | Description / Scenario | Target Route / Component | Locators & Expected Result |
 |---|---|---|---|---|
-| **UI-TM-01** | Team Sidebar Group Render | View workspace sidebar with active teams. | `WorkspaceSidebar` | Displays "Your teams" section with team names and default sub-items (Issues, Cycles). |
-| **UI-TM-02** | Team Sub-Menu Navigation Routing | Click "Issues" or "Cycles" sub-link under team in sidebar. | `TeamSidebarMenuItem` | Navigates to `/workspace/:slug/teams/:teamSlug/issues` (or `/cycles`), loads team view, and sets active link highlight. |
-| **UI-TM-03** | Manage Teams Action Link | Click gear icon next to "Your teams" in sidebar header. | `/workspace/:slug/teams` | Navigates to workspace team management route displaying list of workspace teams and create team action. |
-| **UI-TM-04** | Create Team Modal Render | Click "+ Create team" button on teams page or sidebar header. | `TeamCreateModal` | Displays modal dialog containing team name input, team key input, and submit button. |
-| **UI-TM-05** | Create Team Submission | Enter valid team name (e.g. "Frontend") and key (e.g. "FE"). | `TeamCreateForm` | Creates team, closes modal, and updates sidebar navigation and teams list with new team. |
-| **UI-TM-06** | Create Team Key Validation | Enter invalid team key (e.g. >12 chars or illegal characters). | `TeamCreateForm` | Displays field error indicating key constraints (max 12 alphanumeric chars). |
-| **UI-TM-07** | Team Cycle Settings | Navigate to team cycle settings route. | `/workspace/:slug/teams/:teamSlug/settings/cycles` | Renders controls to configure default cycle duration, auto-start, and auto-archive. |
+| **UI-TM-01** | Team Sidebar Group Render | View workspace sidebar with active teams. | `WorkspaceSidebar` | "Your teams" section renders with team names and nested navigation links (Issues, Cycles). |
+| **UI-TM-02** | Team Sub-Menu Navigation Routing | Click "Issues" or "Cycles" link under team in sidebar. | `TeamSidebarMenuItem` | URL updates to `/workspace/:slug/teams/:teamSlug/issues` (or `/cycles`), loads view, and highlights team menu item. |
+| **UI-TM-03** | Manage Teams Action Link | Click gear icon next to "Your teams" in sidebar header. | `/workspace/:slug/teams` | Navigates to workspace team list route with team management table and create team button. |
+| **UI-TM-04** | Create Team Modal Render | Click "+ Create team" button. | `TeamCreateModal` | Modal dialog opens (`getByRole("dialog")`) with team name input, key input, and submit button. |
+| **UI-TM-05** | Create Team Submission | Enter valid team name (e.g. "Frontend") and key (e.g. "FE"). | `TeamCreateForm` | Team is created via API, dialog closes, and sidebar updates dynamically with the new team. |
+| **UI-TM-06** | Create Team Key Validation | Enter invalid team key (>12 chars or special chars). | `TeamCreateForm` | Inline validation error displays key constraints (max 12 alphanumeric characters). |
+| **UI-TM-07** | Team Cycle Settings | Navigate to team cycle settings. | `/workspace/:slug/teams/:teamSlug/settings/cycles` | Form controls for default cycle duration, auto-start, and auto-archive are rendered and interactive. |
 
 ---
 
 ### 2.4 Issue Board & Detail Views
-| ID | Test Case | Description / Scenario | Target Route / Component | Expected Result |
+- **Target Spec**: `apps/e2e/tests/issues.spec.ts`
+- **Page Object**: `IssueBoardPage`, `IssueDetailPage` (`apps/e2e/pages/issue.page.ts`)
+
+| ID | Test Case | Description / Scenario | Target Route / Component | Locators & Expected Result |
 |---|---|---|---|---|
-| **UI-IS-01** | Issue Board / List Route Render | Navigate to team issues page. | `/workspace/:slug/teams/:teamSlug/issues` | Displays status grouped columns (Backlog, Todo, In Progress, Done, Canceled), issue count badges, and header controls. |
-| **UI-IS-02** | Toggle Kanban vs List View | Switch view mode toggle on issues page header. | `IssueViewHeader` | Toggles display layout between Kanban drag-and-drop board and compact table list view. |
-| **UI-IS-03** | Create Issue Modal Render | Click "+ New issue" button or press keyboard shortcut. | `IssueCreateModal` | Renders issue modal with title input, markdown description editor, status, priority, assignee, cycle, issue type, and label selectors. |
-| **UI-IS-04** | Create Issue Submission | Fill required title and select attributes, then click "Create issue". | `IssueCreateForm` | Creates issue, generates team key number (e.g., `FE-1`), closes modal, and appends issue card to target status column. |
-| **UI-IS-05** | Create Issue Form Validation | Submit issue creation form with empty title. | `IssueCreateForm` | Prevents submission and displays inline validation error under title input field. |
-| **UI-IS-06** | Kanban Drag & Drop Status Update | Drag an issue card from "Todo" to "In Progress" column. | `IssueBoardColumn` | Updates issue status in real-time, recalculates Lexorank sorting order, and triggers backend persistence. |
-| **UI-IS-07** | Real-Time Issue Text Search | Enter search text into filter search bar. | `IssueFilters` | Filters visible issue cards dynamically based on title, description, or issue key match. |
-| **UI-IS-08** | Filter Issues by Status / Priority / Label | Select specific filter criteria from filter popovers. | `IssueFilters` | Displays only issues matching all active filter parameters; shows active filter chips with clear buttons. |
-| **UI-IS-09** | Grouping & Sorting Controls | Change group-by option (e.g., by Assignee or Priority) or sort order. | `IssueViewOptions` | Re-organizes board/list layout according to selected grouping field and sorting direction. |
-| **UI-IS-10** | Issue Detail View Render | Navigate to specific issue detail route. | `/workspace/:slug/teams/:teamSlug/issue/:issueId` | Displays complete issue detail page with title, description, property bar, sub-issues section, and activity stream. |
-| **UI-IS-11** | Edit Issue Title & Description | Click to edit title or description in detail view. | `IssueDetail` | Enables rich text editing, auto-saves on blur or save action, and updates issue header. |
-| **UI-IS-12** | Update Meta Attributes via Property Bar | Change status, priority, assignee, cycle, estimate, or labels in detail view property bar. | `IssuePropertyBar` | Immediately updates issue metadata, logs activity change in timeline, and reflects across app. |
-| **UI-IS-13** | Sub-Issue (Child) Hierarchy Management | Click "Add sub-issue" in issue detail view and link/create child issue. | `AddSubIssueDialog` | Links child issue, displays hierarchy tree with depth indicators (max 5 levels), and updates progress metrics. |
-| **UI-IS-14** | Issue Comments & Activity Stream | Type a comment in activity section and click "Comment". | `IssueActivitySection` | Appends comment to discussion thread with user avatar, timestamp, and audit trail of attribute changes. |
-| **UI-IS-15** | Delete Issue Action | Click issue action menu -> "Delete issue" and confirm deletion dialog. | `IssueDetailHeader` | Removes issue record, displays toast notification, and redirects user back to team issues list. |
+| **UI-IS-01** | Issue Board / List Route Render | Navigate to team issues page. | `/workspace/:slug/teams/:teamSlug/issues` | Columns for Backlog, Todo, In Progress, Done, and Canceled render with issue count badges and header controls. |
+| **UI-IS-02** | Toggle Kanban vs List View | Click view mode toggle button in header. | `IssueViewHeader` | Layout toggles between Kanban board columns and compact table list view (`role="table"`). |
+| **UI-IS-03** | Create Issue Modal Render | Click "+ New issue" button or trigger shortcut (`C`). | `IssueCreateModal` | Modal dialog opens (`getByRole("dialog")`) with title input, description editor, and attribute select dropdowns. |
+| **UI-IS-04** | Create Issue Submission | Fill title and select status/priority, click "Create issue". | `IssueCreateForm` | Submits form, closes modal, and verifies new issue card (e.g., `FE-1`) is rendered in target status column. |
+| **UI-IS-05** | Create Issue Form Validation | Submit creation form without entering a title. | `IssueCreateForm` | Submission is blocked; inline error is displayed below the title field. |
+| **UI-IS-06** | Kanban Drag & Drop Status Update | Drag issue card from "Todo" to "In Progress" column. | `IssueBoardColumn` | Uses Playwright `locator.dragTo()` to drop card; issue moves to target column and status updates via API. |
+| **UI-IS-07** | Real-Time Issue Text Search | Type search query into issue filter bar. | `IssueFilters` | Issue cards filter dynamically to show only items matching title, description, or key query. |
+| **UI-IS-08** | Filter Issues by Status / Priority / Label | Select filter options from dropdown popovers. | `IssueFilters` | Only issues matching all filter criteria remain visible; active filter chips with remove buttons are rendered. |
+| **UI-IS-09** | Grouping & Sorting Controls | Change group-by selector (e.g. Assignee, Priority) or sort order. | `IssueViewOptions` | Board columns and list groupings re-render according to selected group-by criterion. |
+| **UI-IS-10** | Issue Detail View Render | Navigate to issue detail route. | `/workspace/:slug/teams/:teamSlug/issue/:issueId` | Detail page displays issue title, description, property sidebar, sub-issues section, and activity timeline. |
+| **UI-IS-11** | Edit Issue Title & Description | Click to edit title or description in detail view. | `IssueDetail` | In-place editor activates; changes auto-save on blur and reflect in page title and breadcrumb. |
+| **UI-IS-12** | Update Meta Attributes via Property Bar | Update status, priority, assignee, or cycle in property bar. | `IssuePropertyBar` | Dropdown change triggers immediate update; new attribute displays and change is logged in activity stream. |
+| **UI-IS-13** | Sub-Issue (Child) Hierarchy Management | Click "Add sub-issue" in issue detail view and link/create child. | `AddSubIssueDialog` | Child issue appears in sub-issues hierarchy tree with correct nesting depth indicator (max 5 levels). |
+| **UI-IS-14** | Issue Comments & Activity Stream | Type comment in activity section and click "Comment". | `IssueActivitySection` | New comment item appends to activity timeline with user avatar, timestamp, and content. |
+| **UI-IS-15** | Delete Issue Action | Select "Delete issue" from issue action menu and confirm dialog. | `IssueDetailHeader` | Deletion confirmation removes issue, displays toast notification, and redirects back to team issues route. |
 
 ---
 
 ### 2.5 Cycles & Sprint Planning
-| ID | Test Case | Description / Scenario | Target Route / Component | Expected Result |
+- **Target Spec**: `apps/e2e/tests/cycles.spec.ts`
+- **Page Object**: `CyclePage` (`apps/e2e/pages/cycle.page.ts`)
+
+| ID | Test Case | Description / Scenario | Target Route / Component | Locators & Expected Result |
 |---|---|---|---|---|
-| **UI-CY-01** | Cycle List Route Render | Navigate to team cycles page. | `/workspace/:slug/teams/:teamSlug/cycles/` | Displays tabs/sections for Active, Upcoming, and Completed cycles with date ranges and metrics. |
-| **UI-CY-02** | Create Cycle Modal & Submission | Click "Create cycle", set cycle name, start date, and end date ISO strings. | `CycleFormDialog` | Validates dates, creates cycle record in "upcoming" state, and appends to cycles list. |
-| **UI-CY-03** | Active Cycle Progress & Velocity Metrics | View active cycle card. | `CycleCard` / `CycleMetricsCard` | Renders burn-down progress bar, completed vs remaining issue points/count, and cycle end countdown. |
-| **UI-CY-04** | Assign Issue to Active Cycle | Select cycle from issue property dropdown or drag issue into cycle. | `IssueCycleSelect` | Updates issue's cycle relationship and adjusts target cycle's scope and velocity calculations. |
-| **UI-CY-05** | Cycle State Transition & Complete Cycle Dialog | Click "Complete cycle" action on an active cycle. | `CycleCompleteDialog` | Prompts user to handle uncompleted issues (move to next cycle or backlog) and transitions state to "completed". |
+| **UI-CY-01** | Cycle List Route Render | Navigate to team cycles page. | `/workspace/:slug/teams/:teamSlug/cycles/` | Active, Upcoming, and Completed cycle sections/tabs are displayed with date ranges. |
+| **UI-CY-02** | Create Cycle Modal & Submission | Click "Create cycle", fill name and ISO date range. | `CycleFormDialog` | Validates date ranges, creates cycle in "upcoming" state, and appends card to cycle list. |
+| **UI-CY-03** | Active Cycle Progress & Velocity Metrics | View active cycle card. | `CycleCard` / `CycleMetricsCard` | Renders burn-down progress bar, remaining vs completed issue points count, and countdown indicator. |
+| **UI-CY-04** | Assign Issue to Active Cycle | Select cycle from issue property dropdown or drag issue into cycle. | `IssueCycleSelect` | Updates cycle association on issue; cycle scope metrics recalculate. |
+| **UI-CY-05** | Cycle State Transition & Complete Cycle Dialog | Click "Complete cycle" on active cycle. | `CycleCompleteDialog` | Modal prompts for rollover of unfinished issues (move to backlog or next cycle); state transitions to "completed". |
 
 ---
 
 ### 2.6 Command Palette & Navigation Shortcuts
-| ID | Test Case | Description / Scenario | Target Route / Component | Expected Result |
+- **Target Spec**: `apps/e2e/tests/command-palette.spec.ts`
+- **Page Object**: `CommandPalettePage` (`apps/e2e/pages/command-palette.page.ts`)
+
+| ID | Test Case | Description / Scenario | Target Route / Component | Locators & Expected Result |
 |---|---|---|---|---|
-| **UI-CMD-01** | Command Palette Render | Press `Cmd+K` / `Ctrl+K` keyboard shortcut or click search icon. | `SearchPaletteDialog` | Opens overlay search modal with input field and categorized action/navigation commands. |
-| **UI-CMD-02** | Command Palette Search & Navigation | Type query (e.g. issue key, team name, setting) and press Enter. | `SearchPalette` | Filters commands and issues in real-time; selecting an item navigates immediately to target route. |
+| **UI-CMD-01** | Command Palette Render | Press `Meta+K` / `Control+K` keyboard shortcut or click search button. | `SearchPaletteDialog` | Search overlay modal (`getByRole("dialog")`) appears with auto-focused search input. |
+| **UI-CMD-02** | Command Palette Search & Navigation | Type search query (issue key, team name, setting) and press `Enter`. | `SearchPalette` | List items filter in real-time; selecting a match navigates immediately to the selected route. |
 
 ---
 
 ### 2.7 Workspace Settings & Administration
-| ID | Test Case | Description / Scenario | Target Route / Component | Expected Result |
+- **Target Spec**: `apps/e2e/tests/settings.spec.ts`
+- **Page Object**: `SettingsPage` (`apps/e2e/pages/settings.page.ts`)
+
+| ID | Test Case | Description / Scenario | Target Route / Component | Locators & Expected Result |
 |---|---|---|---|---|
-| **UI-SET-GEN-01** | General Workspace Settings Render & Update | Navigate to `/workspace/:slug/settings/general`. | `WorkspaceSettingsGeneral` | Displays workspace name, slug, timezone, icon upload; saving updates workspace properties. |
-| **UI-SET-GEN-02** | Workspace Deletion Flow | Scroll to Danger Zone in general settings and confirm slug deletion prompt. | `WorkspaceSettingsGeneral` | Deletes workspace and all associated resources; redirects user to workspace creation page. |
-| **UI-SET-MEM-01** | Workspace Members List View | Navigate to `/workspace/:slug/settings/members`. | `WorkspaceMembersView` | Displays table of workspace members, email addresses, assigned workspace roles, and pending invites. |
-| **UI-SET-MEM-02** | Invite Workspace Member | Click "Invite member", enter recipient email address, and select initial role. | `InviteMemberModal` | Creates pending invitation record, generates invite token link, and shows success toast. |
-| **UI-SET-MEM-03** | Change Member Role & Revoke Membership | Select role dropdown for existing member or click "Remove member". | `WorkspaceMembersView` | Updates user permissions immediately or removes member from workspace upon confirmation. |
-| **UI-SET-ROL-01** | Roles & Permissions Matrix Render | Navigate to `/workspace/:slug/settings/roles`. | `WorkspaceRolesView` | Displays built-in (Owner, Admin, Member) and custom roles with granular permission matrix toggles. |
-| **UI-SET-ROL-02** | Create & Edit Custom Role | Click "Create role", enter role name/description, and select permission flags. | `WorkspaceRoleModal` | Saves custom role, displays in role list, and makes role assignable to workspace members. |
-| **UI-SET-WF-01** | Workflow Statuses Management View | Navigate to `/workspace/:slug/settings/workflow`. | `IssueStatusesView` | Displays status categories (Backlog, Todo, In Progress, Done, Canceled) and current workflow statuses. |
-| **UI-SET-WF-02** | Create Custom Workflow Status | Click "Add status", enter name, pick color, and select state group. | `StatusCreateModal` | Adds new status to state category, makes status selectable in issues, and updates board columns. |
-| **UI-SET-LBL-01** | Labels List & Create Modal | Navigate to `/workspace/:slug/settings/labels`. | `LabelList` | Displays list of workspace labels with color badges; "Create label" modal permits adding label with hex color. |
-| **UI-SET-LBL-02** | Edit & Delete Label | Click edit/delete icon on label row. | `LabelFormModal` | Updates label name/color or removes label with confirmation dialog. |
-| **UI-SET-PRI-01** | Priorities Management View | Navigate to `/workspace/:slug/settings/priorities`. | `IssuePrioritiesView` | Displays system and custom priority levels (Urgent, High, Medium, Low, None) with order and color controls. |
-| **UI-SET-TYP-01** | Issue Types Management View | Navigate to `/workspace/:slug/settings/issue-types`. | `IssueTypesView` | Displays list of issue types (Task, Bug, Feature, Improvement); permits creating/editing issue type name and icon. |
+| **UI-SET-GEN-01** | General Settings Render & Update | Navigate to `/workspace/:slug/settings/general`. | `WorkspaceSettingsGeneral` | Displays workspace name, slug, and timezone fields; saving updates workspace properties and shows toast. |
+| **UI-SET-GEN-02** | Workspace Deletion Flow | In general settings Danger Zone, enter slug and confirm deletion. | `WorkspaceSettingsGeneral` | Workspace is deleted from database; browser redirects to `/workspace/create`. |
+| **UI-SET-MEM-01** | Workspace Members List View | Navigate to `/workspace/:slug/settings/members`. | `WorkspaceMembersView` | Table renders active workspace members, email addresses, assigned roles, and pending invites tab. |
+| **UI-SET-MEM-02** | Invite Workspace Member | Click "Invite member", enter recipient email, and select role. | `InviteMemberModal` | Creates pending invite record, generates invitation link, and displays success toast. |
+| **UI-SET-MEM-03** | Change Member Role & Revoke Membership | Change role dropdown or click "Remove member" action. | `WorkspaceMembersView` | Updates membership role in real-time or removes member following confirmation dialog. |
+| **UI-SET-ROL-01** | Roles & Permissions Matrix Render | Navigate to `/workspace/:slug/settings/roles`. | `WorkspaceRolesView` | Lists built-in (Owner, Admin, Member) and custom roles with granular permission toggle checkboxes. |
+| **UI-SET-ROL-02** | Create & Edit Custom Role | Click "Create role", fill name/description, select permissions. | `WorkspaceRoleModal` | Custom role is saved, added to role list, and becomes assignable in members view. |
+| **UI-SET-WF-01** | Workflow Statuses Management View | Navigate to `/workspace/:slug/settings/workflow`. | `IssueStatusesView` | Displays status categories (Backlog, Todo, In Progress, Done, Canceled) with existing workflow statuses. |
+| **UI-SET-WF-02** | Create Custom Workflow Status | Click "Add status", enter name, choose color and status category. | `StatusCreateModal` | Adds new status to workflow category; status becomes selectable on issues and boards. |
+| **UI-SET-LBL-01** | Labels List & Create Modal | Navigate to `/workspace/:slug/settings/labels`. | `LabelList` | Displays label list with color chips; "Create label" dialog allows adding new label with hex color. |
+| **UI-SET-LBL-02** | Edit & Delete Label | Click edit/delete icon on label table row. | `LabelFormModal` | Updates label details or removes label after confirming deletion. |
+| **UI-SET-PRI-01** | Priorities Management View | Navigate to `/workspace/:slug/settings/priorities`. | `IssuePrioritiesView` | Displays system and custom priority levels (Urgent, High, Medium, Low, None) with order controls. |
+| **UI-SET-TYP-01** | Issue Types Management View | Navigate to `/workspace/:slug/settings/issue-types`. | `IssueTypesView` | Displays list of issue types (Task, Bug, Feature, Improvement); allows editing name and icon. |
 
 ---
 
 ### 2.8 Workspace Invitations & Member Onboarding
-| ID | Test Case | Description / Scenario | Target Route / Component | Expected Result |
+- **Target Spec**: `apps/e2e/tests/invite.spec.ts`
+- **Page Object**: `InvitePage` (`apps/e2e/pages/invite.page.ts`)
+
+| ID | Test Case | Description / Scenario | Target Route / Component | Locators & Expected Result |
 |---|---|---|---|---|
-| **UI-INV-01** | Invite Token Link Page Render | Navigate to `/invite/:token` as authenticated user. | `/invite/$token` | Renders invitation details page showing workspace name, inviter name, and "Accept Invitation" button. |
-| **UI-INV-02** | Accept Invitation Flow | Click "Accept Invitation" button on invite page. | `/invite/$token` | Grants workspace membership, redirects user to `/workspace/:slug`, and displays success toast. |
-| **UI-INV-03** | Invalid or Expired Token Error State | Navigate to `/invite/invalid-token-code`. | `/invite/$token` | Renders clear error message banner stating invitation link is invalid or expired with link to home. |
+| **UI-INV-01** | Invite Token Link Page Render | Navigate to `/invite/:token` as authenticated user. | `/invite/$token` | Renders invitation card with workspace name, inviter details, and "Accept Invitation" button. |
+| **UI-INV-02** | Accept Invitation Flow | Click "Accept Invitation" button on invite page. | `/invite/$token` | Membership is created; user is redirected to `/workspace/:slug` with welcome toast. |
+| **UI-INV-03** | Invalid or Expired Token Error State | Navigate to `/invite/invalid-token-code`. | `/invite/$token` | Error alert banner displays indicating invitation is expired or invalid, with link to home. |
 
 ---
 
 ## 3. Automation Test Suite Execution
 
-- **API Unit Tests**: Executed via Bun Test: `nix develop --command bun test packages/api`
-- **UI Unit Tests**: Executed via Vitest: `nix develop --command bun -F tss-web test:unit`
-- **UI E2E Selenium Tests**: Executed via PyTest: `nix develop --command pytest tests/ui`
+### 3.1 E2E Tests (Playwright)
+All E2E tests reside in `apps/e2e` and are executed via Bun and Playwright:
 
+| Action | Command | Notes |
+|---|---|---|
+| **Run all E2E tests (headless)** | `bun test:e2e` | Runs Playwright tests across configured browsers (`firefox` default in Nix) |
+| **Run E2E tests with UI** | `bun test:e2e:ui` | Opens interactive Playwright UI mode |
+| **Run E2E tests in headed browser** | `bun test:e2e:headed` | Opens headed browser automation in real-time |
+| **Open Playwright HTML Report** | `bun test:e2e:report` | Opens generated Playwright HTML test report |
+| **Run specific test file** | `bun -F e2e test tests/auth.spec.ts` | Executes tests matching specific spec |
+
+### 3.2 Unit & Integration Tests (Bun Test)
+Developer unit tests reside inside package and app source trees:
+
+| Action | Command | Scope |
+|---|---|---|
+| **All Unit / Integration Tests** | `bun test:unit` | Runs `bun test` across packages and apps |
+| **API Procedure Tests** | `bun test packages/api` | Tests oRPC routers and validation logic |
+| **Frontend Component Tests** | `bun -F tss-web test` | Runs developer unit tests for UI components |
+
+### 3.3 Nix & Browser Environment
+When running inside NixOS or Nix develop shell:
+- `PLAYWRIGHT_BROWSERS_PATH`: Automatically provided by `flake.nix` pointing to `pkgs.playwright-driver.browsers`
+- `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=true`: Bypasses standard Linux OS distribution checks
+- Command with Nix wrapper:
+  ```bash
+  nix develop --command bun test:e2e
+  ```
+
+---
+
+## 4. Test Implementation Pattern (Reference)
+
+All UI tests follow the Page Object Model (POM) pattern with custom Playwright fixtures:
+
+```typescript
+// apps/e2e/tests/auth.spec.ts
+import { expect, test } from "../fixtures/test";
+
+test.describe("Authentication - UI-AUTH Test Cases", () => {
+  test("[UI-AUTH-01] Auth Form Render", async ({ authPage }) => {
+    await test.step("Navigate to /auth route", async () => {
+      await authPage.goto();
+    });
+
+    await test.step("Verify default sign-in fields and buttons are visible", async () => {
+      await expect(authPage.emailInput).toBeVisible();
+      await expect(authPage.passwordInput).toBeVisible();
+      await expect(authPage.signInSubmitButton).toBeVisible();
+      await expect(authPage.toggleSignUpButton).toBeVisible();
+    });
+
+    await test.step("Verify sign-up-only fields are hidden in sign-in mode", async () => {
+      await expect(authPage.nameInput).not.toBeVisible();
+      await expect(authPage.signUpSubmitButton).not.toBeVisible();
+    });
+  });
+});
+```
