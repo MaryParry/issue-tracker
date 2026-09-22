@@ -13,11 +13,5 @@
 			"db/*": ["../../packages/db/src/*"]
 		}
 	},
-	"include": [
-		"tests",
-		"pages",
-		"fixtures",
-		"vitest.config.ts",
-		"playwright.config.ts"
-	]
+	"include": ["tests", "pages", "fixtures", "playwright.config.ts", "env.ts"]
 }

@@ -1,8 +1,6 @@
-import type { Browser, Page } from "playwright";
-import { firefox } from "playwright";
-import { afterAll, test as base } from "vitest";
+import { test as base } from "@playwright/test";
 import { AuthPage } from "../pages/auth.page";
-import { deleteUserByEmail, getUser } from "./db";
+import { closeDb, deleteUserByEmail, getUser } from "./db";
 
 export interface TestUser {
 	name: string;
@@ -11,39 +9,21 @@ export interface TestUser {
 }
 
 interface CustomFixtures {
-	page: Page;
 	authPage: AuthPage;
 	testUser: TestUser;
 }
 
-let browser: Browser | null = null;
-
-async function getBrowser(): Promise<Browser> {
-	if (!browser) {
-		const isHeaded =
-			process.env.HEADED === "true" || process.argv.includes("--headed");
-		browser = await firefox.launch({ headless: !isHeaded });
-	}
-	return browser;
+interface CustomWorkerFixtures {
+	// biome-ignore lint/suspicious/noConfusingVoidType: Playwright fixture without value
+	dbTeardown: void;
 }
 
-const extendedTest = base.extend<CustomFixtures>({
-	// biome-ignore lint/correctness/noEmptyPattern: Vitest fixture syntax requires empty destructuring pattern
-	page: async ({}, use) => {
-		const b = await getBrowser();
-		const context = await b.newContext({
-			baseURL: process.env.APP_URL || "http://localhost:3000",
-		});
-		const page = await context.newPage();
-		await use(page);
-		await context.close();
-	},
-
+export const test = base.extend<CustomFixtures, CustomWorkerFixtures>({
 	authPage: async ({ page }, use) => {
 		await use(new AuthPage(page));
 	},
 
-	// biome-ignore lint/correctness/noEmptyPattern: Vitest fixture syntax requires empty destructuring pattern
+	// biome-ignore lint/correctness/noEmptyPattern: Playwright fixture syntax requires empty destructuring pattern
 	testUser: async ({}, use) => {
 		const uid = Math.random().toString(36).slice(2, 8);
 		const user: TestUser = {
@@ -57,20 +37,17 @@ const extendedTest = base.extend<CustomFixtures>({
 		// Teardown: clean up test data from DB after test completes
 		await deleteUserByEmail(user.email);
 	},
-});
 
-export const test = Object.assign(extendedTest, {
-	step: async <T>(_title: string, fn: () => Promise<T> | T): Promise<T> => {
-		return await fn();
-	},
-});
-
-afterAll(async () => {
-	if (browser) {
-		await browser.close();
-		browser = null;
-	}
+	// Worker teardown: close DB connection pool after all tests in the worker complete
+	dbTeardown: [
+		// biome-ignore lint/correctness/noEmptyPattern: Playwright fixture syntax requires empty destructuring pattern
+		async ({}, use) => {
+			await use();
+			await closeDb();
+		},
+		{ scope: "worker", auto: true },
+	],
 });
 
 export { expect } from "@playwright/test";
-export { deleteUserByEmail, getUser };
+export { closeDb, deleteUserByEmail, getUser };
