@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 import { env } from "./env";
 
-const baseURL = env.APP_URL ?? `http://localhost:${env.PORT}`;
+const baseURL = env.APP_URL;
 
 export default defineConfig({
 	testDir: "./tests",

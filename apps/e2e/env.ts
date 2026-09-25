@@ -11,8 +11,7 @@ dotenv.config({ path: path.resolve(dirname, "../../.env.local") });
 export const env = createEnv({
 	server: {
 		CI: z.coerce.boolean().default(false),
-		PORT: z.coerce.number().default(3000),
-		APP_URL: z.url().optional(),
+		APP_URL: z.url().default("http://localhost:3000"),
 	},
 	runtimeEnv: process.env,
 	emptyStringAsUndefined: true,
