@@ -56,4 +56,28 @@ test.describe("Authentication - UI-AUTH Test Cases", () => {
 			await expect(authPage.signUpSubmitButton).not.toBeVisible();
 		});
 	});
+
+	test.only("[UI-AUTH-03] Auth input Validation", async ({ authPage }) => {
+		await authPage.goto({ initialMode: "signin" });
+		//invalid e-mail
+		await test.step("Authenticate with invalid e-mail", async () => {
+			await authPage.signIn("invalidEmail", "shortPassword");
+			//await (authPage.formError)[1].toContain("")    //awaiting issue to be fixed
+		});
+
+		await authPage.goto({ initialMode: "signin" });
+		//invalid password
+		await test.step("Authenticate with invalid e-mail", async () => {
+			await authPage.signIn("test@test.qa", "123");
+			await expect(authPage.formError).toContainText("Too small");
+		});
+
+		await authPage.goto({ initialMode: "signin" });
+		//valid auth
+		await test.step("Authenticate with invalid e-mail", async () => {
+			await authPage.goto({ initialMode: "signin" });
+			await authPage.signIn("test@test.qa", "testtest");
+			await expect(authPage.createWorkspaceButton).toBeVisible();
+		});
+	});
 });

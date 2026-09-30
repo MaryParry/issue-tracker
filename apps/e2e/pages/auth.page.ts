@@ -26,6 +26,11 @@ export function createAuthPage(page: Page) {
 		name: "Sign in",
 		exact: true,
 	});
+	const createWorkspaceButton = page.getByRole("button", {
+		//confirms auth
+		name: "Create Workspace",
+		exact: true,
+	});
 	const formError = page.locator(".form-error");
 
 	async function goto(options?: AuthPageNavigateOptions): Promise<void> {
@@ -74,6 +79,7 @@ export function createAuthPage(page: Page) {
 		toggleSignUpButton,
 		toggleSignInButton,
 		formError,
+		createWorkspaceButton,
 		goto,
 		switchToSignUp,
 		switchToSignIn,
