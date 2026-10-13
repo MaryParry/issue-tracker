@@ -26,11 +26,6 @@ export function createAuthPage(page: Page) {
 		name: "Sign in",
 		exact: true,
 	});
-	const createWorkspaceButton = page.getByRole("link", {
-		//confirms auth
-		name: "Create Workspace",
-		exact: true,
-	});
 	const formError = page.locator(".form-error");
 	const alerts = page.getByRole("alert");
 	const fieldErrors = page.locator('[data-slot="field-error"]');
@@ -97,7 +92,6 @@ export function createAuthPage(page: Page) {
 		emailError,
 		passwordError,
 		nameError,
-		createWorkspaceButton,
 		goto,
 		switchToSignUp,
 		switchToSignIn,

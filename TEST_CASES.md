@@ -74,7 +74,7 @@ All UI tests run in `apps/e2e` using TypeScript, Playwright page abstractions, a
 | **UI-AUTH-02** | Toggle Sign-In / Sign-Up Mode | Click sign-up toggle button on `/auth`. | `/auth` | Toggles submit button text between "Sign In" and "Sign Up". `nameInput` (`getByRole("textbox", { name: /name/i })`) is visible in sign-up mode and hidden when switching back. |
 | **UI-AUTH-03** | Auth Input Validation | Enter invalid email format or password under 8 characters. | `/auth` | Form submission is prevented; client-side or inline error message (`getByRole("alert")`) is displayed indicating validation failure. |
 | **UI-AUTH-04** | Invalid Credentials Error State | Submit unauthenticated/incorrect login credentials. | `/auth` | Top-level alert banner (`getByRole("alert")`) renders auth failure message from service. |
-| **UI-AUTH-05** | Happy Path / Valid Credentials Auth | Navigate to `/auth`, register a new account via `testUser`, then sign in with the newly registered credentials. | `/auth` | Successful registration and authentication redirects to main page; `createWorkspaceButton` (`getByRole("link", { name: "Create Workspace" })`) is visible. |
+| **UI-AUTH-05** | Happy Path / Valid Credentials Auth | Navigate to `/auth`, register a new account via `testUser`, then sign in with the newly registered credentials. | `/auth` | Successful registration and authentication redirects to `/`; session is verified via GET `/api/auth/get-session`. |
 | **UI-AUTH-06** | Invite Token Query Handling | Navigate to `/auth?inviteToken=abc-123`. | `/auth` | Preserves `inviteToken` query parameter in state and redirects to `/invite/abc-123` upon successful authentication. |
 
 ---
@@ -199,7 +199,7 @@ All E2E tests reside in `apps/e2e` and are executed via Bun and Playwright:
 
 | Action | Command | Notes |
 |---|---|---|
-| **Run all E2E tests (headless)** | `bun test:e2e` | Runs Playwright tests across configured browsers (`firefox` default in Nix) |
+| **Run all E2E tests (headless)** | `bun test:e2e` | Runs Playwright tests across configured browsers (Chromium, Firefox) |
 | **Run E2E tests with UI** | `bun test:e2e:ui` | Opens interactive Playwright UI mode |
 | **Run E2E tests in headed browser** | `bun test:e2e:headed` | Opens headed browser automation in real-time |
 | **Open Playwright HTML Report** | `bun test:e2e:report` | Opens generated Playwright HTML test report |

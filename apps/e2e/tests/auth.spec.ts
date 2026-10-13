@@ -44,7 +44,6 @@ test.describe("Authentication - UI-AUTH Test Cases", () => {
 	});
 
 	test("[UI-AUTH-03] Auth input Validation", async ({ authPage }) => {
-		//invalid e-mail
 		await test.step("Authenticate with invalid e-mail", async () => {
 			await authPage.goto({ initialMode: "signin" });
 			await authPage.signIn("invalidEmail", "shortPassword");
@@ -54,7 +53,6 @@ test.describe("Authentication - UI-AUTH Test Cases", () => {
 			);
 		});
 
-		//invalid password
 		await test.step("Authenticate with invalid password", async () => {
 			await authPage.goto({ initialMode: "signin" });
 			await authPage.signIn("test@test.qa", "123");
@@ -84,14 +82,26 @@ test.describe("Authentication - UI-AUTH Test Cases", () => {
 		await test.step("Sign up with valid credentials and assert redirection", async () => {
 			await authPage.goto({ initialMode: "signup" });
 			await authPage.signUp(testUser.name, email, password);
-			await expect(authPage.createWorkspaceButton).toBeVisible();
+			await expect(authPage.page).toHaveURL("/");
+			const sessionResponse = await authPage.page.request.get(
+				"/api/auth/get-session",
+			);
+			expect(sessionResponse.ok()).toBeTruthy();
+			const session = await sessionResponse.json();
+			expect(session?.user?.email).toBe(email);
 		});
 
 		await test.step("Sign out, submit registered credentials and assert log-in", async () => {
 			await authPage.page.context().clearCookies();
 			await authPage.goto({ initialMode: "signin" });
 			await authPage.signIn(email, password);
-			await expect(authPage.createWorkspaceButton).toBeVisible();
+			await expect(authPage.page).toHaveURL("/");
+			const sessionResponse = await authPage.page.request.get(
+				"/api/auth/get-session",
+			);
+			expect(sessionResponse.ok()).toBeTruthy();
+			const session = await sessionResponse.json();
+			expect(session?.user?.email).toBe(email);
 		});
 	});
 
